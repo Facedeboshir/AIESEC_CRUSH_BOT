@@ -174,7 +174,7 @@ class BotDatabase:
 db_connection.close()
 if __name__ == '__main__':
     # Define the port number for the Flask server
-    PORT = 5000
+    PORT = 5432
 
     server.run(debug=True, host='0.0.0.0', port=PORT)
     updater.stop()
