@@ -7,6 +7,7 @@ from telegram import Bot, Update, ChatAction, ReplyKeyboardMarkup, ReplyKeyboard
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from telegram.utils.helpers import mention_markdown
 import psycopg2
+from psycopg2.extras import execute_values
 from config import *
 
 server = Flask(__name__)
@@ -56,7 +57,17 @@ def compatibility(update, context):
 # Configure logging
 logging.basicConfig(filename='logs.log', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
-
+# In command handler
+def in_command(update, context):
+    chat_id = update.effective_chat.id
+    user = update.effective_user
+    logging.info('/in called, chat_id=%s user_id=%s', chat_id, user.id)
+    user_name = user.username or user.first_name or 'anonymous'
+    BotDatabase.add_user(user.id, user_name)
+    BotDatabase.add_user_to_chat(chat_id, user.id)
+    message = f'Thanks for opting in {user_name}'
+    context.bot.send_message(chat_id=chat_id, text=message)
+    
 # Start command handler
 def start(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id,
@@ -87,16 +98,7 @@ def random_gif(update, context):
     context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.UPLOAD_PHOTO)
     context.bot.send_animation(chat_id=update.effective_chat.id, animation=open(gif_path, 'rb'))
 
-# In command handler
-def in_command(update, context):
-    chat_id = update.effective_chat.id
-    user = update.effective_user
-    logging.info('/in called, chat_id=%s user_id=%s', chat_id, user.id)
-    user_name = user.username or user.first_name or 'anonymous'
-    BotDatabase.add_user(user.id, user_name)
-    BotDatabase.add_user_to_chat(chat_id, user.id)
-    message = f'Thanks for opting in {user_name}'
-    context.bot.send_message(chat_id=chat_id, text=message)
+
 
 # Out command handler
 def out_command(update, context):
@@ -152,100 +154,63 @@ updater.dispatcher.add_handler(MessageHandler(Filters.command, unknown))
 
 
 
-
-
-# Run the bot
-updater.start_polling()
-
-# Create the necessary tables in the database if they don't exist
-db_connection.commit()
-
 class BotDatabase:
     def __init__(self, filename):
         self.conn = psycopg2.connect(DB_URI)
-
         self._add_users_table()
         self._add_chats_table()
-        
+    
     def add_user(self, user_id, username):
-        with self.conn.cursor() as cursor:
-            query = '''INSERT INTO users (user_id, username) VALUES (%s, %s) ON CONFLICT (user_id) do UPDATE SET username = %s'''
-            cursor.execute(query, (user_id, username, username))
-            self.conn.commit()
-
-    def get_all_users(self):
-        with self.conn.cursor() as cursor:
-            query = '''SELECT user_id, username FROM users'''
-            cursor.execute(query)
-            return cursor.fetchall()
-
-    def get_users_from_chat(self, group_id):
-        with self.conn.cursor() as cursor:
-            query = '''SELECT c.user_id, u.username 
-                        FROM chats c 
-                        JOIN users u on c.user_id = u.user_id 
-                        WHERE c.chat_id=%s'''
-            cursor.execute(query, (group_id,))
-            return cursor.fetchall()
-
-    def add_user_to_chat(self, chat_id, user_id):
-        with self.conn.cursor() as cursor:
-            query = '''INSERT INTO chats (chat_id, user_id) VALUES (%s, %s) ON CONFLICT DO NOTHING'''
-            cursor.execute(query, (chat_id, user_id))
-            self.conn.commit()
-
+        query = "INSERT INTO users (id, username) VALUES (%s, %s)"
+        values = (user_id, username)
+        self.conn.cursor().execute(query, values)
+        self.conn.commit()
+    
     def delete_user_from_chat(self, chat_id, user_id):
-        with self.conn.cursor() as cursor:
-            query = '''DELETE from chats WHERE chat_id = %s AND user_id = %s'''
-            cursor.execute(query, (chat_id, user_id))
-            self.conn.commit()
-
-    def update_user_username(self, user_id, new_username):
-        with self.conn.cursor() as cursor:
-            sql_update_query = '''UPDATE users SET username = %s WHERE user_id = %s'''
-            cursor.execute(sql_update_query, (new_username, user_id))
-            self.conn.commit()
-
-    def count_users(self):
-        with self.conn.cursor() as cursor:
-            query = '''SELECT COUNT(user_id) FROM users'''
-            cursor.execute(query)
-            return cursor.fetchone()
-
-    def count_chats(self):
-        with self.conn.cursor() as cursor:
-            query = '''SELECT COUNT(DISTINCT chat_id) FROM chats'''
-            cursor.execute(query)
-            return cursor.fetchone()
-
-    def count_groups(self):
-        with self.conn.cursor() as cursor:
-            query = '''SELECT COUNT(DISTINCT chat_id) FROM chats WHERE chat_id <> user_id'''
-            cursor.execute(query)
-            return cursor.fetchone()
+        query = "DELETE FROM chat_users WHERE chat_id = %s AND user_id = %s"
+        values = (chat_id, user_id)
+        self.conn.cursor().execute(query, values)
+        self.conn.commit()
+    
+    def add_user_to_chat(self, chat_id, user_id):
+        query = "INSERT INTO chat_users (chat_id, user_id) VALUES (%s, %s)"
+        values = (chat_id, user_id)
+        self.conn.cursor().execute(query, values)
+        self.conn.commit()
+    
+    def get_users_from_chat(self, chat_id):
+        query = "SELECT users.id, users.username FROM chat_users JOIN users ON chat_users.user_id = users.id WHERE chat_id = %s"
+        values = (chat_id,)
+        cursor = self.conn.cursor()
+        cursor.execute(query, values)
+        return cursor.fetchall()
 
     def _add_users_table(self):
-        with self.conn.cursor() as cursor:
-            query = '''CREATE TABLE IF NOT EXISTS 
-                                        users (user_id BIGINT, username VARCHAR(64), PRIMARY KEY (user_id))'''
-            cursor.execute(query)
-            self.conn.commit()
-
+        cursor = self.conn.cursor()
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id BIGINT PRIMARY KEY,
+                username TEXT
+            )
+            """
+        )
+        self.conn.commit()
+    
     def _add_chats_table(self):
-        with self.conn.cursor() as cursor:
-            query = '''
-                CREATE TABLE IF NOT EXISTS chats (
-                    chat_id BIGINT, 
-                    user_id BIGINT, 
-                    PRIMARY KEY (chat_id, user_id),
-                    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE )'''
-            cursor.execute(query)
-            self.conn.commit()
+        cursor = self.conn.cursor()
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS chat_users (
+                chat_id BIGINT,
+                user_id BIGINT,
+                PRIMARY KEY (chat_id, user_id)
+            )
+            """
+        )
+        self.conn.commit()
 
-    def close(self):
-        self.conn.close()
-
-
+    
 # Close the database connection
 db_connection.close()
 if __name__ == '__main__':
