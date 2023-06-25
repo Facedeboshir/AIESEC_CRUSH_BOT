@@ -33,6 +33,14 @@ names = ['Guldana Kurmangali', 'Zarina Mustafina', 'Dina Kalibekova', 'Tamiris I
          'Nurzhan Kadyrkhan', 'Yerkezhan Ryskanova', 'Aibek Alimkhan', 'Nagyn Seitkhan', 'Nursultan Seitmyrza',
          'Aida Toxambayeva', 'Rozalina Alkeyeva', 'Altair Abdrakhman', 'Aruzhan Adebiyetova', 'Assem Khazadiyaz',
          'Aibat Mukametkali', 'Kaisar Daukenov']
+# Configure logging
+logging.basicConfig(filename='logs.log', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
+
+# Start command handler
+def start(update, context):
+    context.bot.send_message(chat_id=update.effective_chat.id,
+                             text="Привет, я твой любимый бот! \nС помощью /help ты можешь ознакомиться с.списком доступных команд.")
 
 def compatibility(update, context):
     args = context.args
@@ -52,9 +60,7 @@ def compatibility(update, context):
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text="Тег написан неправильно, пример /comp @username.")
 
-# Configure logging
-logging.basicConfig(filename='logs.log', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
+
 # In command handler
 def in_command(update, context):
     chat_id = update.effective_chat.id
@@ -66,10 +72,6 @@ def in_command(update, context):
     message = f'Thanks for opting in {user_name}'
     context.bot.send_message(chat_id=chat_id, text=message)
     
-# Start command handler
-def start(update, context):
-    context.bot.send_message(chat_id=update.effective_chat.id,
-                             text="Привет, я твой любимый бот! \nС помощью /help ты можешь ознакомиться с.списком доступных команд.")
 
 # Help command handler
 def help(update, context):
@@ -149,6 +151,10 @@ updater.dispatcher.add_handler(CommandHandler('out',out_command))
 updater.dispatcher.add_handler(CommandHandler('all',all_command ))
 comp_handler = CommandHandler('comp', compatibility, pass_args=True)
 updater.dispatcher.add_handler(MessageHandler(Filters.command, unknown))
+
+# Run the bot
+updater.start_polling()
+
 
 if __name__ == '__main__':
     server.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
