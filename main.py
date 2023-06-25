@@ -62,7 +62,7 @@ def compatibility(update, context):
 
 
 # In command handler
-def in_command(update, context):
+def in_command(update, context ,message):
     chat_id = update.effective_chat.id
     user = update.effective_user
     logging.info('/in called, chat_id=%s user_id=%s', chat_id, user.id)
