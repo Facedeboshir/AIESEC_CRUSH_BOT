@@ -9,10 +9,8 @@ from telegram.utils.helpers import mention_markdown
 import psycopg2
 from psycopg2.extras import execute_values
 from config import *
-
+from botdatabase import BotDatabase
 server = Flask(__name__)
-db_connection = psycopg2.connect(DB_URI)
-db_object = db_connection.cursor()
 
 
 updater = Updater(BOT_TOKEN)
@@ -152,67 +150,6 @@ updater.dispatcher.add_handler(CommandHandler('all',all_command ))
 comp_handler = CommandHandler('comp', compatibility, pass_args=True)
 updater.dispatcher.add_handler(MessageHandler(Filters.command, unknown))
 
-
-
-class BotDatabase:
-    def __init__(self, filename):
-        self.conn = psycopg2.connect(DB_URI)
-        self._add_users_table()
-        self._add_chats_table()
-    
-    def add_user(self, user_id, username):
-        query = "INSERT INTO users (id, username) VALUES (%s, %s)"
-        values = (user_id, username)
-        self.conn.cursor().execute(query, values)
-        self.conn.commit()
-    
-    def delete_user_from_chat(self, chat_id, user_id):
-        query = "DELETE FROM chat_users WHERE chat_id = %s AND user_id = %s"
-        values = (chat_id, user_id)
-        self.conn.cursor().execute(query, values)
-        self.conn.commit()
-    
-    def add_user_to_chat(self, chat_id, user_id):
-        query = "INSERT INTO chat_users (chat_id, user_id) VALUES (%s, %s)"
-        values = (chat_id, user_id)
-        self.conn.cursor().execute(query, values)
-        self.conn.commit()
-    
-    def get_users_from_chat(self, chat_id):
-        query = "SELECT users.id, users.username FROM chat_users JOIN users ON chat_users.user_id = users.id WHERE chat_id = %s"
-        values = (chat_id,)
-        cursor = self.conn.cursor()
-        cursor.execute(query, values)
-        return cursor.fetchall()
-
-    def _add_users_table(self):
-        cursor = self.conn.cursor()
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS users (
-                id BIGINT PRIMARY KEY,
-                username TEXT
-            )
-            """
-        )
-        self.conn.commit()
-    
-    def _add_chats_table(self):
-        cursor = self.conn.cursor()
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS chat_users (
-                chat_id BIGINT,
-                user_id BIGINT,
-                PRIMARY KEY (chat_id, user_id)
-            )
-            """
-        )
-        self.conn.commit()
-
-    
-# Close the database connection
-db_connection.close()
 if __name__ == '__main__':
     server.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
     updater.stop()
