@@ -10,8 +10,7 @@ import psycopg2
 from psycopg2.extras import execute_values
 from config import *
 from botdatabase import BotDatabase
-
-
+import botdatabase
 
 updater = Updater(BOT_TOKEN)
 server = Flask(__name__)
