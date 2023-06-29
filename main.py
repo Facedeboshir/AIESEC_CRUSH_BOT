@@ -88,7 +88,7 @@ def help(update, context):
                                   "/comp @name - Check your compatibility")
 
 # Random name command handler
-def random_name(update, context):
+def crush(update, context):
     chat_id = update.effective_chat.id
     random_name = random.choice(names)
     message = f"Твой краш {random_name} ❤️"
@@ -145,15 +145,26 @@ def all_command(update, context):
 def unknown(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text="Извините, я не понимаю эту команду.")
 
+# Stats command handler
+def stats_command(update, context):
+    message = f'users: {BotDatabase.count_users()[0]}\n' \
+              f'chats: {BotDatabase.count_chats()[0]}\n' \
+              f'groups: {BotDatabase.count_groups()[0]}'
+    context.bot.send_message(update.effective_chat.id, text=message)
+
+
 # Add command handlers to the updater
 updater.dispatcher.add_handler(CommandHandler('start', start))
 updater.dispatcher.add_handler(CommandHandler('help', help))
-updater.dispatcher.add_handler(CommandHandler('crush', random_name))
+updater.dispatcher.add_handler(CommandHandler('crush', crush))
 updater.dispatcher.add_handler(CommandHandler('daymood', random_gif))
 updater.dispatcher.add_handler(CommandHandler('in',in_command))
 updater.dispatcher.add_handler(CommandHandler('out',out_command))
 updater.dispatcher.add_handler(CommandHandler('all',all_command ))
 comp_handler = CommandHandler('comp', compatibility, pass_args=True)
+stats_handler = CommandHandler('stats', stats_command)
+updater.dispatcher.add_handler(comp_handler)
+updater.dispatcher.add_handler(stats_handler)
 updater.dispatcher.add_handler(MessageHandler(Filters.command, unknown))
 
 # Run the bot
