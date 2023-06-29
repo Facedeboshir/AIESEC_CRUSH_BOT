@@ -10,10 +10,11 @@ import psycopg2
 from psycopg2.extras import execute_values
 from config import *
 from botdatabase import BotDatabase
-server = Flask(__name__)
+
 
 
 updater = Updater(BOT_TOKEN)
+server = Flask(__name__)
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
@@ -40,8 +41,9 @@ logging.basicConfig(filename='logs.log', format='%(asctime)s - %(name)s - %(leve
 # Start command handler
 def start(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id,
-                             text="Привет, я твой любимый бот! \nС помощью /help ты можешь ознакомиться с.списком доступных команд.")
+                             text="Привет, я твой любимый бот! \nС помощью /help ты можешь ознакомиться со списком доступных команд.")
 
+# Compatibility command handler
 def compatibility(update, context):
     args = context.args
     if len(args) > 0:
@@ -87,8 +89,10 @@ def help(update, context):
 
 # Random name command handler
 def random_name(update, context):
-    name = random.choice(names)
-    context.bot.send_message(chat_id=update.effective_chat.id, text=name)
+    chat_id = update.effective_chat.id
+    random_name = random.choice(names)
+    message = f"Твой краш {random_name} ❤️"
+    context.bot.send_message(chat_id=chat_id, text=message, reply_to_message_id=update.message.message_id)
 
 # Random GIF command handler
 def random_gif(update, context):
